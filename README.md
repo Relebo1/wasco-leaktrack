@@ -1,5 +1,17 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Administrator bootstrap and account management
+
+Public registration creates reporter accounts only. Staff accounts and roles are managed by a system administrator at `/admin/users`.
+
+To create the initial administrator, set `DATABASE_URL`, `ADMIN_NAME`, `ADMIN_EMAIL`, and `ADMIN_PASSWORD` in the local environment. Use a unique password with at least 12 characters, then run:
+
+```bash
+npm run admin:create
+```
+
+The command creates the account only when its email does not already exist. It does not reset or change an existing account.
+
 ## Getting Started
 
 First, run the development server:

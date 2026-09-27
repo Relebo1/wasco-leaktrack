@@ -1,0 +1,245 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum Role {
+  SYSTEM_ADMINISTRATOR
+  WASCO_MANAGER
+  LEAKAGE_OFFICER
+  FIELD_TECHNICIAN
+  REPORTER
+}
+
+enum ReportStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  ASSIGNED
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum InfoRequestStatus {
+  PENDING
+  RESPONDED
+  CLOSED
+}
+
+// ─── User ────────────────────────────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(REPORTER)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  submittedReports   LeakReport[]        @relation("SubmittedBy")
+  assignedReports    Assignment[]        @relation("AssignedTo")
+  createdAssignments Assignment[]        @relation("AssignedBy")
+  findings           Finding[]
+  notifications      Notification[]
+  auditLogs          AuditLog[]
+  investigationNotes InvestigationNote[]
+  infoRequestsSent   InfoRequest[]       @relation("RequestedBy")
+  repairRecords      RepairRecord[]
+
+  @@map("users")
+}
+
+// ─── Leak Report ─────────────────────────────────────────────────────────────
+
+model LeakReport {
+  id               String       @id @default(cuid())
+  referenceNumber  String       @unique
+  status           ReportStatus @default(SUBMITTED)
+  category         String       @default("OTHER")
+  isHighPriority   Boolean      @default(false)
+  isVerified       Boolean      @default(false)
+  verificationNote String?      @db.Text
+  verifiedAt       DateTime?
+  description      String       @db.Text
+  address          String
+  latitude         Decimal?     @db.Decimal(10, 8)
+  longitude        Decimal?     @db.Decimal(11, 8)
+  contactName      String?
+  contactPhone     String?
+  contactEmail     String?
+  isValid          Boolean?
+  validationNote   String?      @db.Text
+  submittedById    String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  submittedBy        User?               @relation("SubmittedBy", fields: [submittedById], references: [id])
+  photos             Photo[]
+  assignments        Assignment[]
+  findings           Finding[]
+  notifications      Notification[]
+  auditLogs          AuditLog[]
+  investigationNotes InvestigationNote[]
+  infoRequests       InfoRequest[]
+  repairRecords      RepairRecord[]
+
+  @@map("leak_reports")
+}
+
+model LeakCategory {
+  id        String   @id
+  label     String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("leak_categories")
+}
+
+model SystemSetting {
+  key       String   @id
+  value     String   @db.Text
+  updatedAt DateTime @updatedAt
+
+  @@map("system_settings")
+}
+
+// ─── Assignment ───────────────────────────────────────────────────────────────
+
+model Assignment {
+  id           String   @id @default(cuid())
+  reportId     String
+  assignedToId String
+  assignedById String
+  notes        String?  @db.Text
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  report     LeakReport @relation(fields: [reportId], references: [id])
+  assignedTo User       @relation("AssignedTo", fields: [assignedToId], references: [id])
+  assignedBy User       @relation("AssignedBy", fields: [assignedById], references: [id])
+
+  @@map("assignments")
+}
+
+// ─── Finding ─────────────────────────────────────────────────────────────────
+
+model Finding {
+  id           String   @id @default(cuid())
+  reportId     String
+  technicianId String
+  notes        String   @db.Text
+  createdAt    DateTime @default(now())
+
+  report     LeakReport @relation(fields: [reportId], references: [id])
+  technician User       @relation(fields: [technicianId], references: [id])
+  photos     Photo[]
+
+  @@map("findings")
+}
+
+// ─── Investigation Note ───────────────────────────────────────────────────────
+
+model InvestigationNote {
+  id        String   @id @default(cuid())
+  reportId  String
+  authorId  String
+  note      String   @db.Text
+  createdAt DateTime @default(now())
+
+  report LeakReport @relation(fields: [reportId], references: [id])
+  author User       @relation(fields: [authorId], references: [id])
+
+  @@map("investigation_notes")
+}
+
+// ─── Info Request ─────────────────────────────────────────────────────────────
+
+model InfoRequest {
+  id            String            @id @default(cuid())
+  reportId      String
+  requestedById String
+  message       String            @db.Text
+  response      String?           @db.Text
+  status        InfoRequestStatus @default(PENDING)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  report      LeakReport @relation(fields: [reportId], references: [id])
+  requestedBy User       @relation("RequestedBy", fields: [requestedById], references: [id])
+
+  @@map("info_requests")
+}
+
+// ─── Repair Record ──────────────────────────────────────────────────────────
+
+model RepairRecord {
+  id           String    @id @default(cuid())
+  reportId     String
+  technicianId String
+  actions      String    @db.Text
+  isCompleted  Boolean   @default(false)
+  completedAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  report     LeakReport @relation(fields: [reportId], references: [id])
+  technician User       @relation(fields: [technicianId], references: [id])
+
+  @@map("repair_records")
+}
+
+// ─── Photo ───────────────────────────────────────────────────────────────────
+
+model Photo {
+  id        String   @id @default(cuid())
+  url       String
+  reportId  String?
+  findingId String?
+  createdAt DateTime @default(now())
+
+  report  LeakReport? @relation(fields: [reportId], references: [id])
+  finding Finding?    @relation(fields: [findingId], references: [id])
+
+  @@map("photos")
+}
+
+// ─── Notification ─────────────────────────────────────────────────────────────
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  reportId  String?
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user   User        @relation(fields: [userId], references: [id])
+  report LeakReport? @relation(fields: [reportId], references: [id])
+
+  @@map("notifications")
+}
+
+// ─── Audit Log ────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  reportId  String?
+  action    String
+  detail    String?  @db.Text
+  createdAt DateTime @default(now())
+
+  user   User?       @relation(fields: [userId], references: [id])
+  report LeakReport? @relation(fields: [reportId], references: [id])
+
+  @@map("audit_logs")
+}
