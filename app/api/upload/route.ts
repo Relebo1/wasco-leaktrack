@@ -22,11 +22,13 @@ export async function POST(req: NextRequest) {
   const uploadsDir = path.join(process.cwd(), "public/uploads");
   await mkdir(uploadsDir, { recursive: true });
 
+  const ALLOWED_EXTS = ["jpg", "jpeg", "png", "gif", "webp", "heic", "heif"];
   for (const file of files) {
-    if (!file.type.startsWith("image/") || file.size > maxBytes)
-      return NextResponse.json({ error: `Each upload must be an image no larger than ${maxBytes / 1024 / 1024} MB.` }, { status: 400 });
     const requestedExt = file.name.split(".").pop()?.toLowerCase() ?? "";
-    const ext = ["jpg", "jpeg", "png", "gif", "webp"].includes(requestedExt) ? requestedExt : "jpg";
+    const isImage = file.type.startsWith("image/") || ALLOWED_EXTS.includes(requestedExt);
+    if (!isImage || file.size > maxBytes)
+      return NextResponse.json({ error: `Each upload must be an image no larger than ${maxBytes / 1024 / 1024} MB.` }, { status: 400 });
+    const ext = ALLOWED_EXTS.includes(requestedExt) ? requestedExt : "jpg";
     const filename = `${nanoid()}.${ext}`;
     const buffer = Buffer.from(await file.arrayBuffer());
     await writeFile(path.join(uploadsDir, filename), buffer);

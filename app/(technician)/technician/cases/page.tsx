@@ -1,12 +1,11 @@
 "use client";
 export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react";
-import { useSession, signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import Link from "next/link";
 import {
-  Bell, LogOut, Wrench, MapPin, Clock,
+  Wrench, MapPin, Clock,
   CheckCircle2, AlertCircle, ChevronRight, Loader2,
 } from "lucide-react";
 
@@ -58,8 +57,6 @@ export default function TechnicianCasesPage() {
     }).catch(() => setLoading(false));
   }, [status, session]);
 
-  const unread = notifications.filter(n => !n.isRead).length;
-
   async function markRead(id: string) {
     await fetch("/api/notifications", {
       method: "PATCH",
@@ -67,10 +64,6 @@ export default function TechnicianCasesPage() {
       body: JSON.stringify({ id }),
     });
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
-  }
-
-  async function markAllRead() {
-    await Promise.all(notifications.filter(n => !n.isRead).map(n => markRead(n.id)));
   }
 
   const counts = {
@@ -89,75 +82,8 @@ export default function TechnicianCasesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Navbar */}
-      <nav className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between sticky top-0 z-40 shadow-sm">
-        <div className="flex items-center gap-3">
-          <Image src="/Logo.png" alt="WASCO" width={36} height={36} className="object-contain" />
-          <div>
-            <p className="font-bold text-primary text-sm leading-none">WASCO</p>
-            <p className="text-accent text-xs tracking-widest uppercase">Leak Track</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-4">
-          <span className="text-xs font-medium text-gray-500 bg-gray-100 px-3 py-1 rounded-full">Field Technician</span>
-          <div className="relative">
-            <button
-              onClick={() => setShowNotifications(v => !v)}
-              className="relative p-2 rounded-full hover:bg-gray-100 transition-colors"
-            >
-              <Bell size={20} className="text-gray-600" />
-              {unread > 0 && (
-                <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-                  {unread}
-                </span>
-              )}
-            </button>
-
-            {showNotifications && (
-              <div className="absolute right-0 top-12 w-80 bg-white rounded-2xl shadow-xl border border-gray-200 z-50 overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-                  <p className="text-sm font-semibold text-gray-800">Notifications</p>
-                  {unread > 0 && (
-                    <button onClick={markAllRead} className="text-xs text-primary hover:underline">
-                      Mark all read
-                    </button>
-                  )}
-                </div>
-                <div className="max-h-80 overflow-y-auto divide-y divide-gray-50">
-                  {notifications.length === 0 ? (
-                    <p className="text-xs text-gray-400 text-center py-6">No notifications</p>
-                  ) : notifications.map(n => (
-                    <div
-                      key={n.id}
-                      onClick={() => {
-                        markRead(n.id);
-                        if (n.reportId) router.push(`/technician/cases/${n.reportId}`);
-                      }}
-                      className={`px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors ${!n.isRead ? "bg-blue-50" : ""}`}
-                    >
-                      <p className={`text-xs leading-relaxed ${!n.isRead ? "text-gray-800 font-medium" : "text-gray-500"}`}>
-                        {n.message}
-                      </p>
-                      <p className="text-xs text-gray-400 mt-1">{new Date(n.createdAt).toLocaleString()}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-          <span className="text-sm text-gray-600 hidden sm:block">{session?.user?.name}</span>
-          <button
-            onClick={() => signOut({ callbackUrl: "/" })}
-            className="flex items-center gap-1 text-sm text-gray-500 hover:text-red-500 transition-colors"
-          >
-            <LogOut size={16} /> Sign out
-          </button>
-        </div>
-      </nav>
-
-      <div className="max-w-5xl mx-auto px-6 py-8">
-        <div className="mb-8">
+    <div className="p-6 max-w-5xl mx-auto">
+      <div className="mb-8">
           <h1 className="text-2xl font-bold text-primary">My Assigned Cases</h1>
           <p className="text-gray-500 text-sm mt-1">View and manage all leak cases assigned to you.</p>
         </div>
@@ -224,7 +150,6 @@ export default function TechnicianCasesPage() {
             ))}
           </div>
         )}
-      </div>
     </div>
   );
 }

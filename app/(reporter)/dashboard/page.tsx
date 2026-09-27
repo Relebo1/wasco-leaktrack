@@ -1,13 +1,12 @@
 "use client";
 export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react";
-import { useSession, signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Image from "next/image";
 import Link from "next/link";
 import {
-  Bell, CheckCircle2, Clock, AlertCircle, Droplets,
-  Camera, LogOut, Plus, Loader2,
+  CheckCircle2, Clock, AlertCircle, Droplets,
+  Camera, Plus, Loader2,
 } from "lucide-react";
 
 type Report = {
@@ -37,8 +36,6 @@ export default function DashboardPage() {
   const router = useRouter();
   const params = useSearchParams();
   const [reports, setReports] = useState<Report[]>([]);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [showNotifs, setShowNotifs] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -59,24 +56,11 @@ export default function DashboardPage() {
     if (status !== "authenticated") return;
     Promise.all([
       fetch("/api/reports").then(r => r.json()),
-      fetch("/api/notifications").then(r => r.json()),
-    ]).then(([r, n]) => {
+    ]).then(([r]) => {
       setReports(r);
-      setNotifications(n);
       setLoading(false);
     });
   }, [status]);
-
-  async function markRead(id: string) {
-    await fetch("/api/notifications", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
-    });
-    setNotifications(n => n.map(x => x.id === id ? { ...x, isRead: true } : x));
-  }
-
-  const unread = notifications.filter(n => !n.isRead).length;
 
   if (status === "loading" || loading) {
     return (
@@ -87,63 +71,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Navbar */}
-      <nav className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between sticky top-0 z-40 shadow-sm">
-        <div className="flex items-center gap-3">
-          <Image src="/Logo.png" alt="WASCO" width={36} height={36} className="object-contain" />
-          <div>
-            <p className="font-bold text-primary text-sm leading-none">WASCO</p>
-            <p className="text-accent text-xs tracking-widest uppercase">Leak Track</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-4">
-          {/* Notifications */}
-          <div className="relative">
-            <button
-              onClick={() => setShowNotifs(!showNotifs)}
-              className="relative p-2 rounded-full hover:bg-gray-100 transition-colors"
-            >
-              <Bell size={20} className="text-gray-600" />
-              {unread > 0 && (
-                <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-                  {unread}
-                </span>
-              )}
-            </button>
-            {showNotifs && (
-              <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-gray-200 z-50 overflow-hidden">
-                <div className="px-4 py-3 border-b border-gray-100 font-semibold text-sm text-gray-700">Notifications</div>
-                {notifications.length === 0 ? (
-                  <p className="text-sm text-gray-400 px-4 py-4">No notifications yet.</p>
-                ) : (
-                  <ul className="max-h-72 overflow-y-auto divide-y divide-gray-50">
-                    {notifications.map(n => (
-                      <li
-                        key={n.id}
-                        onClick={() => markRead(n.id)}
-                        className={`px-4 py-3 text-sm cursor-pointer hover:bg-gray-50 ${n.isRead ? "text-gray-400" : "text-gray-700 font-medium"}`}
-                      >
-                        {n.message}
-                        <p className="text-xs text-gray-400 mt-0.5">{new Date(n.createdAt).toLocaleDateString()}</p>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            )}
-          </div>
-          <span className="text-sm text-gray-600 hidden sm:block">{session?.user?.name}</span>
-          <button
-            onClick={() => signOut({ callbackUrl: "/" })}
-            className="flex items-center gap-1 text-sm text-gray-500 hover:text-red-500 transition-colors"
-          >
-            <LogOut size={16} /> Sign out
-          </button>
-        </div>
-      </nav>
-
-      <div className="max-w-5xl mx-auto px-6 py-8">
+    <div className="p-6 max-w-5xl mx-auto">
         {/* Success banner */}
         {params.get("submitted") && (
           <div className="bg-green-50 border border-green-200 text-green-700 rounded-xl px-5 py-4 mb-6 text-sm flex items-center gap-2">
@@ -222,7 +150,6 @@ export default function DashboardPage() {
             ))}
           </div>
         )}
-      </div>
     </div>
   );
 }

@@ -1,12 +1,11 @@
 "use client";
 export const dynamic = "force-dynamic";
 import { useEffect, useState, useCallback } from "react";
-import { useSession, signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import Link from "next/link";
 import {
-  Bell, LogOut, Search, Filter, ChevronRight,
+  Search, Filter, ChevronRight,
   Droplets, Clock, CheckCircle2, AlertCircle, Loader2, UserCheck,
 } from "lucide-react";
 
@@ -88,32 +87,7 @@ export default function OfficerReportsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Navbar */}
-      <nav className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between sticky top-0 z-40 shadow-sm">
-        <div className="flex items-center gap-3">
-          <Image src="/Logo.png" alt="WASCO" width={36} height={36} className="object-contain" />
-          <div>
-            <p className="font-bold text-primary text-sm leading-none">WASCO</p>
-            <p className="text-accent text-xs tracking-widest uppercase">Leak Track</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-4">
-          <Link href="/officer/reports" className="text-sm font-medium text-primary border-b-2 border-primary pb-0.5">Reports</Link>
-          <div className="relative">
-            <Link href="/officer/notifications" className="relative p-2 rounded-full hover:bg-gray-100 transition-colors inline-flex">
-              <Bell size={20} className="text-gray-600" />
-              {unread > 0 && <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">{unread}</span>}
-            </Link>
-          </div>
-          <span className="text-sm text-gray-600 hidden sm:block">{session?.user?.name}</span>
-          <button onClick={() => signOut({ callbackUrl: "/" })} className="flex items-center gap-1 text-sm text-gray-500 hover:text-red-500 transition-colors">
-            <LogOut size={16} /> Sign out
-          </button>
-        </div>
-      </nav>
-
-      <div className="max-w-6xl mx-auto px-6 py-8">
+    <div className="p-6 max-w-6xl mx-auto">
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-primary">Leak Reports</h1>
           <p className="text-gray-500 text-sm mt-1">Review, validate and manage all submitted reports.</p>
@@ -201,7 +175,6 @@ export default function OfficerReportsPage() {
             ))
           )}
         </div>
-      </div>
     </div>
   );
 }

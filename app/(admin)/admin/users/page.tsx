@@ -76,10 +76,7 @@ export default function AdminUsersPage() {
   if (status === "loading" || loading) return <div className="min-h-screen flex items-center justify-center text-gray-500"><Loader2 className="animate-spin mr-2" />Loading accounts…</div>;
 
   return (
-    <main className="min-h-screen bg-gray-50 px-4 py-8">
-      <div className="max-w-5xl mx-auto">
-        <Link href="/manager/dashboard" className="text-sm text-primary hover:underline">← Management dashboard</Link>
-        <nav className="flex gap-4 mt-3 text-sm"><Link href="/admin/categories" className="text-primary hover:underline">Leak categories</Link><Link href="/admin/settings" className="text-primary hover:underline">System settings</Link><Link href="/admin/audit" className="text-primary hover:underline">Audit log</Link></nav>
+    <main className="p-6 max-w-5xl mx-auto">
         <div className="mt-5 mb-7">
           <h1 className="text-2xl font-bold text-primary flex items-center gap-2"><ShieldCheck size={23} /> User management</h1>
           <p className="text-sm text-gray-500 mt-1">Create staff accounts, change roles, reset passwords, and enable or disable access.</p>
@@ -121,7 +118,6 @@ export default function AdminUsersPage() {
             </article>)}
           </div>}
         </section>
-      </div>
-    </main>
+      </main>
   );
 }
