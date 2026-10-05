@@ -6,7 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import {
   ArrowLeft, MapPin, Tag, FileText, User, Camera,
-  CheckCircle2, XCircle, Clock, Loader2, Wrench,
+  CheckCircle2, XCircle, Clock, Loader2, Wrench, UserCheck,
 } from "lucide-react";
 
 type ReportDetail = {
@@ -42,6 +42,10 @@ export default function ManagerCaseDetailPage({ params }: { params: Promise<{ id
   const [saving, setSaving] = useState(false);
   const [verifyNote, setVerifyNote] = useState("");
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; msg: string } | null>(null);
+  const [technicians, setTechnicians] = useState<{ id: string; name: string }[]>([]);
+  const [assignTechId, setAssignTechId] = useState("");
+  const [assignNote, setAssignNote] = useState("");
+  const [assigning, setAssigning] = useState(false);
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/login");
@@ -56,6 +60,9 @@ export default function ManagerCaseDetailPage({ params }: { params: Promise<{ id
     fetch(`/api/reports/${id}`)
       .then(r => r.json())
       .then(r => { setReport(r); setLoading(false); });
+    fetch("/api/users?role=FIELD_TECHNICIAN")
+      .then(r => r.ok ? r.json() : [])
+      .then(setTechnicians);
   }, [id, status]);
 
   async function closeCase(approve: boolean) {
@@ -77,6 +84,24 @@ export default function ManagerCaseDetailPage({ params }: { params: Promise<{ id
     setReport(updated);
   }
 
+  async function assignTechnician(e: React.FormEvent) {
+    e.preventDefault();
+    if (!assignTechId) return;
+    setAssigning(true); setFeedback(null);
+    const res = await fetch(`/api/reports/${id}/assign`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ technicianId: assignTechId, notes: assignNote || undefined }),
+    });
+    const data = await res.json();
+    setAssigning(false);
+    if (!res.ok) return setFeedback({ type: "error", msg: data.error ?? "Assignment failed." });
+    setFeedback({ type: "success", msg: "Technician assigned successfully." });
+    setAssignNote("");
+    const updated = await fetch(`/api/reports/${id}`).then(r => r.json());
+    setReport(updated);
+  }
+
   async function setPriority(highPriority: boolean) {
     const res = await fetch(`/api/reports/${id}/priority`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ highPriority }) });
     if (!res.ok) return;
@@ -94,8 +119,8 @@ export default function ManagerCaseDetailPage({ params }: { params: Promise<{ id
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
       <div className="max-w-4xl mx-auto">
-        <Link href="/manager/dashboard" className="inline-flex items-center gap-1 text-primary text-sm hover:underline mb-6">
-          <ArrowLeft size={16} /> Back to Dashboard
+        <Link href="/manager/cases" className="inline-flex items-center gap-1 text-primary text-sm hover:underline mb-6">
+          <ArrowLeft size={16} /> Back to All Cases
         </Link>
 
         {feedback && (
@@ -223,6 +248,37 @@ export default function ManagerCaseDetailPage({ params }: { params: Promise<{ id
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Assign / Reassign */}
+        {report.status !== "CLOSED" && (
+          <div className="bg-white rounded-2xl border border-gray-200 p-6 mb-6 shadow-sm">
+            <div className="flex items-center gap-2 mb-4">
+              <UserCheck size={18} className="text-primary" />
+              <h2 className="font-semibold text-gray-800">
+                {report.assignments[0] ? "Reassign Technician" : "Assign Technician"}
+              </h2>
+            </div>
+            {report.assignments[0] && (
+              <p className="text-sm text-gray-500 mb-4">
+                Currently assigned to <span className="font-semibold text-gray-700">{report.assignments[0].assignedTo.name}</span>.
+                Select a different technician below to reassign.
+              </p>
+            )}
+            <form onSubmit={assignTechnician} className="flex flex-col sm:flex-row gap-3">
+              <select required value={assignTechId} onChange={e => setAssignTechId(e.target.value)}
+                className="flex-1 border border-gray-300 rounded-lg px-3 py-2.5 text-sm bg-white">
+                <option value="">Select technician…</option>
+                {technicians.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+              <input placeholder="Assignment note (optional)" value={assignNote} onChange={e => setAssignNote(e.target.value)}
+                className="flex-1 border border-gray-300 rounded-lg px-3 py-2.5 text-sm" />
+              <button disabled={assigning || !assignTechId}
+                className="bg-primary text-white rounded-lg px-5 py-2.5 text-sm font-semibold disabled:opacity-60 shrink-0">
+                {assigning ? "Assigning…" : report.assignments[0] ? "Reassign" : "Assign"}
+              </button>
+            </form>
           </div>
         )}
 

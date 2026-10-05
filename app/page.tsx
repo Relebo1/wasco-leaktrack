@@ -1,10 +1,12 @@
+"use client";
+import { useState } from "react";
 import Image from "next/image";
 import {
   ClipboardList, Search, UserCheck, Wrench, CheckCircle,
   MapPin, FileText, Tag, Camera, Phone,
   Users, Building2, ChevronRight, CheckCheck,
   BarChart3, Clock, AlertCircle, UserCog, History,
-  Droplets, ShieldCheck, Map, UserPlus,
+  Droplets, ShieldCheck, Map, UserPlus, X, LogIn, UserPlus2, UserX,
 } from "lucide-react";
 
 const processSteps = [
@@ -46,9 +48,86 @@ const features = [
   { icon: History, label: "Historical Records" },
 ];
 
+function ReportModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center px-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+      <div
+        className="relative bg-white rounded-3xl shadow-2xl w-full max-w-sm p-8"
+        onClick={e => e.stopPropagation()}
+      >
+        <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors">
+          <X size={18} />
+        </button>
+        <div className="mb-6 text-center">
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10">
+            <Droplets size={22} className="text-primary" />
+          </div>
+          <h2 className="text-lg font-bold text-gray-900">Report a Water Leak</h2>
+          <p className="text-sm text-gray-500 mt-1">How would you like to continue?</p>
+        </div>
+        <div className="space-y-3">
+          <a
+            href="/login"
+            className="flex items-center gap-4 w-full border border-gray-200 rounded-2xl px-5 py-4 hover:border-primary hover:bg-primary/[0.03] transition-colors group"
+          >
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 group-hover:bg-primary/20 transition-colors">
+              <LogIn size={18} className="text-primary" />
+            </div>
+            <div className="text-left">
+              <p className="text-sm font-semibold text-gray-800">Sign In</p>
+              <p className="text-xs text-gray-400">Use your existing account</p>
+            </div>
+          </a>
+          <a
+            href="/register"
+            className="flex items-center gap-4 w-full border border-gray-200 rounded-2xl px-5 py-4 hover:border-accent hover:bg-accent/[0.03] transition-colors group"
+          >
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/10 group-hover:bg-accent/20 transition-colors">
+              <UserPlus2 size={18} className="text-accent" />
+            </div>
+            <div className="text-left">
+              <p className="text-sm font-semibold text-gray-800">Create Account</p>
+              <p className="text-xs text-gray-400">Register to track your reports</p>
+            </div>
+          </a>
+          <a
+            href="/report/new"
+            className="flex items-center gap-4 w-full border border-gray-200 rounded-2xl px-5 py-4 hover:border-gray-400 hover:bg-gray-50 transition-colors group"
+          >
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-100 group-hover:bg-gray-200 transition-colors">
+              <UserX size={18} className="text-gray-500" />
+            </div>
+            <div className="text-left">
+              <p className="text-sm font-semibold text-gray-800">Continue as Guest</p>
+              <p className="text-xs text-gray-400">No account needed</p>
+            </div>
+          </a>
+          <div className="border-t border-gray-100 pt-3">
+            <a
+              href="/track"
+              className="flex items-center gap-4 w-full border border-gray-200 rounded-2xl px-5 py-4 hover:border-gray-400 hover:bg-gray-50 transition-colors group"
+            >
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-100 group-hover:bg-gray-200 transition-colors">
+                <Search size={18} className="text-gray-500" />
+              </div>
+              <div className="text-left">
+                <p className="text-sm font-semibold text-gray-800">Track a Report</p>
+                <p className="text-xs text-gray-400">Check status with your reference number</p>
+              </div>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Home() {
+  const [showModal, setShowModal] = useState(false);
   return (
     <main className="min-h-screen bg-neutral font-sans text-gray-800">
+      {showModal && <ReportModal onClose={() => setShowModal(false)} />}
 
       {/* Navbar */}
       <nav className="bg-neutral text-primary sticky top-0 z-50 shadow-md border-b border-gray-200">
@@ -64,14 +143,18 @@ export default function Home() {
             <a href="#how-it-works" className="hover:text-secondary transition-colors">How It Works</a>
             <a href="#tracking" className="hover:text-secondary transition-colors">Tracking</a>
             <a href="#features" className="hover:text-secondary transition-colors">Features</a>
+            <a href="/track" className="hover:text-secondary transition-colors">Track Report</a>
           </div>
           <div className="flex items-center gap-3">
+            <a href="/track" className="border border-primary text-primary px-4 py-2 rounded-full text-sm font-medium hover:bg-primary hover:text-neutral transition-colors">
+              Track Report
+            </a>
             <a href="/login" className="border border-primary text-primary px-4 py-2 rounded-full text-sm font-medium hover:bg-primary hover:text-neutral transition-colors">
               Staff Login
             </a>
-            <a href="/report" className="bg-accent text-neutral px-5 py-2 rounded-full text-sm font-semibold hover:opacity-90 transition-opacity">
+            <button onClick={() => setShowModal(true)} className="bg-accent text-neutral px-5 py-2 rounded-full text-sm font-semibold hover:opacity-90 transition-opacity">
               Report a Leak
-            </a>
+            </button>
           </div>
         </div>
       </nav>
@@ -93,9 +176,9 @@ export default function Home() {
             Members of the public can report water leaks instantly. WASCO staff manage, assign, and resolve every report from one central system.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <a href="/report" className="bg-accent text-neutral px-10 py-4 rounded-full font-bold text-lg hover:opacity-90 transition-opacity shadow-lg flex items-center justify-center gap-2">
+            <button onClick={() => setShowModal(true)} className="bg-accent text-neutral px-10 py-4 rounded-full font-bold text-lg hover:opacity-90 transition-opacity shadow-lg flex items-center justify-center gap-2">
               <Droplets size={20} /> Report a Water Leak
-            </a>
+            </button>
             <a href="/login" className="border-2 border-neutral/40 text-neutral px-10 py-4 rounded-full font-semibold text-lg hover:bg-neutral/10 transition-colors flex items-center justify-center gap-2">
               Staff Login <ChevronRight size={18} />
             </a>
@@ -114,9 +197,9 @@ export default function Home() {
             <p className="text-gray-500 text-sm leading-relaxed">
               Spotted a water leak in your area? Submit a report in minutes — no account needed. Provide the location, describe the problem, attach photos, and leave your contact details. You&apos;ll receive a reference number to track progress.
             </p>
-            <a href="/report" className="inline-flex items-center gap-2 mt-6 bg-primary text-neutral px-6 py-2.5 rounded-full text-sm font-semibold hover:opacity-90 transition-opacity">
+            <button onClick={() => setShowModal(true)} className="inline-flex items-center gap-2 mt-6 bg-primary text-neutral px-6 py-2.5 rounded-full text-sm font-semibold hover:opacity-90 transition-opacity">
               <Droplets size={16} /> Report a Leak
-            </a>
+            </button>
           </div>
           <div className="bg-primary rounded-2xl p-8 shadow-sm text-neutral">
             <div className="w-12 h-12 bg-neutral/10 rounded-xl flex items-center justify-center mb-4">
@@ -282,9 +365,9 @@ export default function Home() {
       <section className="bg-primary py-24 px-6 text-center text-neutral">
         <h2 className="text-4xl md:text-5xl font-extrabold mb-4">See a water leak?</h2>
         <p className="text-neutral/70 text-xl mb-10">Report it. We&apos;ll take it from there.</p>
-        <a href="/report" className="bg-accent text-neutral px-12 py-5 rounded-full font-bold text-xl hover:opacity-90 transition-opacity shadow-xl inline-flex items-center gap-3">
+        <button onClick={() => setShowModal(true)} className="bg-accent text-neutral px-12 py-5 rounded-full font-bold text-xl hover:opacity-90 transition-opacity shadow-xl inline-flex items-center gap-3">
           <Droplets size={24} /> Report a Leak
-        </a>
+        </button>
       </section>
 
       {/* Footer */}

@@ -12,6 +12,7 @@ import {
 
 type ReportDetail = {
   id: string; referenceNumber: string; status: string; category: string;
+  isHighPriority: boolean; isVerified: boolean; verificationNote: string | null;
   address: string; description: string; createdAt: string;
   latitude: string | null; longitude: string | null;
   contactName: string | null; contactPhone: string | null; contactEmail: string | null;
@@ -21,6 +22,8 @@ type ReportDetail = {
   assignments: { id: string; assignedTo: { id: string; name: string }; notes: string | null; createdAt: string }[];
   investigationNotes: { id: string; note: string; createdAt: string; author: { name: string; role: string } }[];
   infoRequests: { id: string; message: string; response: string | null; status: string; createdAt: string }[];
+  findings: { id: string; notes: string; createdAt: string; technician: { name: string }; photos: { id: string; url: string }[] }[];
+  repairRecords: { id: string; actions: string; isCompleted: boolean; completedAt: string | null; technician: { name: string } }[];
 };
 
 type Technician = { id: string; name: string };
@@ -42,6 +45,7 @@ export default function OfficerReportDetailPage({ params }: { params: Promise<{ 
   const router = useRouter();
   const [report, setReport] = useState<ReportDetail | null>(null);
   const [technicians, setTechnicians] = useState<Technician[]>([]);
+  const [categories, setCategories] = useState<{ id: string; label: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -63,10 +67,12 @@ export default function OfficerReportDetailPage({ params }: { params: Promise<{ 
     Promise.all([
       fetch(`/api/reports/${id}`).then(r => r.json()),
       fetch("/api/users?role=FIELD_TECHNICIAN").then(r => r.json()),
-    ]).then(([r, t]) => {
+      fetch("/api/categories").then(r => r.ok ? r.json() : []),
+    ]).then(([r, t, c]) => {
       setReport(r);
       setNewStatus(r.status);
       setTechnicians(t);
+      setCategories(c);
       setLoading(false);
     });
   }, [id, status]);
@@ -114,6 +120,8 @@ export default function OfficerReportDetailPage({ params }: { params: Promise<{ 
                 </span>
                 {report.isValid === true && <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-green-100 text-green-700">Valid</span>}
                 {report.isValid === false && <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-red-100 text-red-700">Invalid</span>}
+                {report.isHighPriority && <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-red-100 text-red-700">Critical</span>}
+                {report.isVerified && <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-green-100 text-green-700">Verified</span>}
               </div>
               <p className="text-xs text-gray-400">Submitted {new Date(report.createdAt).toLocaleString()}</p>
             </div>
@@ -162,6 +170,32 @@ export default function OfficerReportDetailPage({ params }: { params: Promise<{ 
                 </div>
               </div>
             )}
+          </div>
+
+          <div className="mt-5 rounded-xl border border-gray-100 bg-gray-50 p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Completeness check</p>
+            <div className="flex flex-wrap gap-2 text-xs">
+              {[
+                ["Description", Boolean(report.description.trim())],
+                ["Location", Boolean(report.address.trim())],
+                ["Map coordinates", Boolean(report.latitude && report.longitude)],
+                ["Photo evidence", report.photos.length > 0],
+                ["Reporter contact", Boolean(report.contactName || report.contactPhone || report.contactEmail)],
+              ].map(([label, complete]) => <span key={String(label)} className={`rounded-full px-2.5 py-1 ${complete ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-800"}`}>{complete ? "✓" : "!"} {String(label)}</span>)}
+            </div>
+          </div>
+
+          <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-gray-100 pt-4">
+            <label className="text-xs font-medium text-gray-500">Categorise</label>
+            <select aria-label="Leak category" value={report.category} onChange={e => act(() => fetch(`/api/reports/${id}/category`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ category: e.target.value }) }), "Category updated.")} className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white">
+              {categories.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+            </select>
+            <button disabled={saving} onClick={() => act(() => fetch(`/api/reports/${id}/priority`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ highPriority: !report.isHighPriority }) }), report.isHighPriority ? "Priority cleared." : "Leak marked critical.")} className={`rounded-lg px-3 py-2 text-sm font-semibold ${report.isHighPriority ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-700"}`}>
+              {report.isHighPriority ? "Critical priority · Clear" : "Mark critical"}
+            </button>
+            {report.isHighPriority || (Date.now() - new Date(report.createdAt).getTime() >= 48 * 60 * 60 * 1000 && !["RESOLVED", "CLOSED"].includes(report.status)) ? (
+              <button disabled={saving} onClick={() => act(() => fetch(`/api/reports/${id}/escalate`, { method: "POST" }), "Escalated to management.")} className="rounded-lg bg-red-600 text-white px-3 py-2 text-sm font-semibold disabled:opacity-60">Escalate to management</button>
+            ) : null}
           </div>
 
           {/* Photos — US-013 */}
@@ -297,6 +331,23 @@ export default function OfficerReportDetailPage({ params }: { params: Promise<{ 
             )}
           </div>
         </div>
+
+        <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm mt-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-semibold text-gray-800">Technician submissions</h2>
+            <span className="text-xs text-gray-400">{report.findings.length} findings · {report.repairRecords.length} repair records</span>
+          </div>
+          {report.findings.length === 0 && report.repairRecords.length === 0 ? <p className="text-sm text-gray-400">No field submissions yet.</p> : <div className="space-y-3">
+            {report.findings.map(f => <div key={f.id} className="rounded-xl bg-gray-50 p-4 border border-gray-100"><p className="text-sm text-gray-700">{f.notes}</p><p className="mt-2 text-xs text-gray-400">{f.technician.name} · {new Date(f.createdAt).toLocaleString()}</p>{f.photos.length > 0 && <div className="flex gap-2 mt-3 flex-wrap">{f.photos.map(photo => <Image key={photo.id} src={photo.url} alt="Technician submission" width={80} height={80} className="rounded-lg object-cover" />)}</div>}</div>)}
+            {report.repairRecords.map(record => <div key={record.id} className="rounded-xl border border-gray-100 p-4"><p className="text-sm text-gray-700">{record.actions}</p><p className="mt-2 text-xs text-gray-400">{record.technician.name} · {record.isCompleted ? `Completed ${record.completedAt ? new Date(record.completedAt).toLocaleString() : ""}` : "Work in progress"}</p></div>)}
+          </div>}
+        </div>
+
+        {report.status === "RESOLVED" && <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm mt-6">
+          <div className="flex items-center gap-2 mb-3"><CheckCircle2 size={18} className="text-primary"/><h2 className="font-semibold text-gray-800">Verify resolution</h2></div>
+          <textarea rows={2} value={validationNote} onChange={e => setValidationNote(e.target.value)} placeholder="Verification note (required to send back for more work)" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-3" />
+          <div className="flex gap-2"><button disabled={saving} onClick={() => act(() => fetch(`/api/reports/${id}/verify`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ verified: true, note: validationNote }) }), "Leak verified and closed.")} className="flex-1 bg-accent text-white py-2 rounded-lg text-sm font-semibold disabled:opacity-60">Verify and close</button><button disabled={saving || !validationNote.trim()} onClick={() => act(() => fetch(`/api/reports/${id}/verify`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ verified: false, note: validationNote }) }), "Returned to the field team for further repair.")} className="flex-1 bg-orange-100 text-orange-800 py-2 rounded-lg text-sm font-semibold disabled:opacity-60">Reject · Request more work</button></div>
+        </div>}
 
         {/* Investigation Notes — US-017 */}
         <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm mt-6">

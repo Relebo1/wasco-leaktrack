@@ -74,71 +74,88 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await auth();
-  const { description, address, latitude, longitude, category, contactName, contactPhone, contactEmail, photoUrls } =
-    await req.json();
+  try {
+    const session = await auth();
+    const { description, address, latitude, longitude, category, contactName, contactPhone, contactEmail, photoUrls } =
+      await req.json();
 
-  if (session?.user && !["REPORTER", "LEAKAGE_OFFICER", "WASCO_MANAGER"].includes(session.user.role as string))
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  if (!session?.user && (await prisma.systemSetting.findUnique({ where: { key: "allowAnonymousReports" } }))?.value === "false")
-    return NextResponse.json({ error: "Please sign in to submit a report." }, { status: 401 });
+    const parseCoordinate = (value: unknown, name: string, min: number, max: number) => {
+      if (value === null || value === undefined || value === "") return { value: null, error: null };
+      const number = typeof value === "number" ? value : typeof value === "string" && value.trim() !== "" ? Number(value) : NaN;
+      if (!Number.isFinite(number) || number < min || number > max)
+        return { value: null, error: `${name} must be a number between ${min} and ${max}.` };
+      return { value: number, error: null };
+    };
+    const parsedLatitude = parseCoordinate(latitude, "Latitude", -90, 90);
+    const parsedLongitude = parseCoordinate(longitude, "Longitude", -180, 180);
+    if (parsedLatitude.error || parsedLongitude.error)
+      return NextResponse.json({ error: parsedLatitude.error ?? parsedLongitude.error }, { status: 400 });
 
-  if (!description || !address || !category)
-    return NextResponse.json({ error: "Description, address and category are required." }, { status: 400 });
+    if (session?.user && !["REPORTER", "LEAKAGE_OFFICER", "WASCO_MANAGER"].includes(session.user.role as string))
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (!session?.user && (await prisma.systemSetting.findUnique({ where: { key: "allowAnonymousReports" } }))?.value === "false")
+      return NextResponse.json({ error: "Please sign in to submit a report." }, { status: 401 });
 
-  if (!(await prisma.leakCategory.findFirst({ where: { id: category, isActive: true } })))
-    return NextResponse.json({ error: "Select an active leakage category." }, { status: 400 });
+    if (!description || !address || !category)
+      return NextResponse.json({ error: "Description, address and category are required." }, { status: 400 });
 
-  const referenceNumber = `LT-${nanoid(8).toUpperCase()}`;
+    if (!(await prisma.leakCategory.findFirst({ where: { id: category, isActive: true } })))
+      return NextResponse.json({ error: "Select an active leakage category." }, { status: 400 });
 
-  const report = await prisma.leakReport.create({
-    data: {
-      referenceNumber,
-      description,
-      address,
-      latitude,
-      longitude,
-      category,
-      contactName,
-      contactPhone,
-      contactEmail,
-      submittedById: session?.user.id,
-      photos: photoUrls?.length
-        ? { create: photoUrls.map((url: string) => ({ url })) }
-        : undefined,
-    },
-    include: { photos: true },
-  });
+    const referenceNumber = `LT-${nanoid(8).toUpperCase()}`;
 
-  if (session?.user.id) {
-    await prisma.notification.create({
+    const report = await prisma.leakReport.create({
       data: {
-        userId: session.user.id,
-        reportId: report.id,
-        message: `Your report ${referenceNumber} has been submitted successfully.`,
+        referenceNumber,
+        description,
+        address,
+        latitude: parsedLatitude.value,
+        longitude: parsedLongitude.value,
+        category,
+        contactName,
+        contactPhone,
+        contactEmail,
+        submittedById: session?.user.id,
+        photos: photoUrls?.length
+          ? { create: photoUrls.map((url: string) => ({ url })) }
+          : undefined,
       },
+      include: { photos: true },
     });
-  }
 
-  // Notify all leakage officers — US-019
-  const officers = await prisma.user.findMany({
-    where: { role: { in: ["LEAKAGE_OFFICER", "WASCO_MANAGER", "SYSTEM_ADMINISTRATOR"] }, isActive: true },
-    select: { id: true },
-  });
+    if (session?.user.id) {
+      await prisma.notification.create({
+        data: {
+          userId: session.user.id,
+          reportId: report.id,
+          message: `Your report ${referenceNumber} has been submitted successfully.`,
+        },
+      });
+    }
 
-  if (officers.length) {
-    await prisma.notification.createMany({
-      data: officers.map((o: { id: string }) => ({
-        userId: o.id,
-        reportId: report.id,
-        message: `New leak report ${referenceNumber} submitted and awaiting review.`,
-      })),
+    // Notify all leakage officers — US-019
+    const officers = await prisma.user.findMany({
+      where: { role: { in: ["LEAKAGE_OFFICER", "WASCO_MANAGER", "SYSTEM_ADMINISTRATOR"] }, isActive: true },
+      select: { id: true },
     });
+
+    if (officers.length) {
+      await prisma.notification.createMany({
+        data: officers.map((o: { id: string }) => ({
+          userId: o.id,
+          reportId: report.id,
+          message: `New leak report ${referenceNumber} submitted and awaiting review.`,
+        })),
+      });
+    }
+
+    await prisma.auditLog.create({
+      data: { userId: session?.user.id, reportId: report.id, action: "REPORT_SUBMITTED" },
+    });
+
+    return NextResponse.json(report, { status: 201 });
+  } catch (error) {
+    console.error("Failed to submit leak report:", error);
+    return NextResponse.json({ error: "Unable to submit your report right now. Please try again." }, { status: 500 });
   }
-
-  await prisma.auditLog.create({
-    data: { userId: session?.user.id, reportId: report.id, action: "REPORT_SUBMITTED" },
-  });
-
-  return NextResponse.json(report, { status: 201 });
 }

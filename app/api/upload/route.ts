@@ -7,7 +7,7 @@ import { nanoid } from "nanoid";
 
 export async function POST(req: NextRequest) {
   const session = await auth();
-  if (session?.user && !["REPORTER", "LEAKAGE_OFFICER", "FIELD_TECHNICIAN"].includes(session.user.role as string))
+  if (session?.user && !session.user.role)
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const formData = await req.formData();

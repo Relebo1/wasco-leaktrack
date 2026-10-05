@@ -4,10 +4,11 @@ import { prisma } from "@/lib/prisma";
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
-  if (!session?.user || !["WASCO_MANAGER", "SYSTEM_ADMINISTRATOR"].includes(session.user.role as string)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!session?.user || !["WASCO_MANAGER", "SYSTEM_ADMINISTRATOR", "LEAKAGE_OFFICER"].includes(session.user.role as string)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const { id } = await params;
   const { verified, note } = await req.json();
   if (typeof verified !== "boolean") return NextResponse.json({ error: "verified must be a boolean." }, { status: 400 });
+  if (!verified && (typeof note !== "string" || !note.trim())) return NextResponse.json({ error: "A note is required when requesting further repair work." }, { status: 400 });
   const report = await prisma.leakReport.findUnique({ where: { id } });
   if (!report) return NextResponse.json({ error: "Report not found." }, { status: 404 });
   if (report.status !== "RESOLVED") return NextResponse.json({ error: "Only resolved cases can be verified." }, { status: 409 });

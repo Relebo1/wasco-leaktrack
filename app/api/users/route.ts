@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { name, email, password, role } = await req.json();
-  const allowedRoles = ["SYSTEM_ADMINISTRATOR", "WASCO_MANAGER", "LEAKAGE_OFFICER", "FIELD_TECHNICIAN", "REPORTER"];
+  const allowedRoles = ["SYSTEM_ADMINISTRATOR", "WASCO_MANAGER", "LEAKAGE_OFFICER", "FIELD_TECHNICIAN"];
   if (typeof name !== "string" || !name.trim() || typeof email !== "string" || !email.trim() ||
       typeof password !== "string" || password.length < 12 || !allowedRoles.includes(role))
     return NextResponse.json({ error: "Name, email, a valid role and a password of at least 12 characters are required." }, { status: 400 });

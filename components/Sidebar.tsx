@@ -1,4 +1,5 @@
 "use client";
+
 import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
@@ -13,19 +14,19 @@ type NavItem = { label: string; href: string; icon: React.ElementType };
 
 const NAV: Record<string, NavItem[]> = {
   SYSTEM_ADMINISTRATOR: [
-    { label: "Dashboard",    href: "/manager/dashboard", icon: LayoutDashboard },
-    { label: "Users",        href: "/admin/users",        icon: Users },
-    { label: "Categories",   href: "/admin/categories",   icon: Tag },
-    { label: "Settings",     href: "/admin/settings",     icon: Settings },
-    { label: "Audit Log",    href: "/admin/audit",        icon: ClipboardList },
+    { label: "Dashboard",  href: "/manager/dashboard", icon: LayoutDashboard },
+    { label: "Users",      href: "/admin/users",        icon: Users },
+    { label: "Categories", href: "/admin/categories",   icon: Tag },
+    { label: "Settings",   href: "/admin/settings",     icon: Settings },
+    { label: "Audit Log",  href: "/admin/audit",        icon: ClipboardList },
   ],
   WASCO_MANAGER: [
-    { label: "Dashboard",  href: "/manager/dashboard", icon: LayoutDashboard },
-    { label: "All Cases",  href: "/officer/reports",   icon: FileText },
+    { label: "Dashboard", href: "/manager/dashboard", icon: LayoutDashboard },
+    { label: "All Cases", href: "/manager/cases",     icon: FileText },
   ],
   LEAKAGE_OFFICER: [
-    { label: "Reports",       href: "/officer/reports",       icon: FileText },
-    { label: "Notifications", href: "/officer/notifications", icon: Bell },
+    { label: "Reports",       href: "/officer/reports",        icon: FileText },
+    { label: "Notifications", href: "/officer/notifications",  icon: Bell },
   ],
   FIELD_TECHNICIAN: [
     { label: "My Cases", href: "/technician/cases", icon: Wrench },
@@ -44,105 +45,154 @@ const ROLE_LABEL: Record<string, string> = {
   REPORTER:             "Reporter",
 };
 
-export default function Sidebar({ unread = 0 }: { unread?: number }) {
+function initials(name?: string | null) {
+  if (!name?.trim()) return "?";
+  return name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
+}
+
+function NavLink({ item, active, unread, onClick }: {
+  item: NavItem; active: boolean; unread?: number; onClick?: () => void;
+}) {
+  const Icon = item.icon;
+  return (
+    <Link
+      href={item.href}
+      onClick={onClick}
+      aria-current={active ? "page" : undefined}
+      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+        active
+          ? "bg-accent text-white"
+          : "text-white/60 hover:bg-white/10 hover:text-white"
+      }`}
+    >
+      <Icon size={17} strokeWidth={active ? 2 : 1.75} />
+      <span className="flex-1">{item.label}</span>
+      {item.label === "Notifications" && unread! > 0 && (
+        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+          {unread! > 9 ? "9+" : unread}
+        </span>
+      )}
+    </Link>
+  );
+}
+
+function SidebarContent({ onClose, unread }: { onClose?: () => void; unread: number }) {
   const { data: session } = useSession();
   const pathname = usePathname();
-  const [open, setOpen] = useState(false);
 
   const role = (session?.user as { role?: string })?.role ?? "REPORTER";
   const items = NAV[role] ?? NAV.REPORTER;
+  const name = session?.user?.name || "User";
 
-  const content = (
-    <div className="flex flex-col h-full">
+  return (
+    <div className="flex h-full flex-col bg-primary">
       {/* Logo */}
-      <div className="flex items-center gap-3 px-5 py-5 border-b border-gray-100">
-        <Image src="/Logo.png" alt="WASCO" width={36} height={36} className="object-contain shrink-0" />
+      <div className="flex items-center gap-3 px-5 py-4 border-b border-white/10">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white shadow-sm">
+          <Image src="/Logo.png" alt="WASCO" width={28} height={28} className="object-contain" priority />
+        </div>
         <div>
-          <p className="font-bold text-primary text-sm leading-none">WASCO</p>
-          <p className="text-accent text-xs tracking-widest uppercase">Leak Track</p>
+          <p className="text-sm font-bold leading-none text-white">WASCO</p>
+          <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-widest text-white/40">
+            Leak Track
+          </p>
         </div>
       </div>
 
-      {/* User info */}
-      <div className="px-5 py-4 border-b border-gray-100">
-        <p className="text-sm font-semibold text-gray-800 truncate">{session?.user?.name}</p>
-        <span className="inline-block mt-1 text-xs font-medium bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-          {ROLE_LABEL[role] ?? role}
-        </span>
-      </div>
-
-      {/* Nav items */}
-      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        {items.map(({ label, href, icon: Icon }) => {
-          const active = pathname === href || pathname.startsWith(href + "/");
-          return (
-            <Link
-              key={href}
-              href={href}
-              onClick={() => setOpen(false)}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                active
-                  ? "bg-primary text-white"
-                  : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-              }`}
-            >
-              <Icon size={18} className="shrink-0" />
-              <span className="flex-1">{label}</span>
-              {label === "Notifications" && unread > 0 && (
-                <span className="w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-                  {unread > 9 ? "9+" : unread}
-                </span>
-              )}
-            </Link>
-          );
-        })}
+      {/* Nav */}
+      <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5">
+        <p className="px-3 pb-2 text-[10px] font-bold uppercase tracking-widest text-white/35">
+          Menu
+        </p>
+        {items.map((item) => (
+          <NavLink
+            key={item.href}
+            item={item}
+            active={pathname === item.href || pathname.startsWith(item.href + "/")}
+            unread={item.label === "Notifications" ? unread : 0}
+            onClick={onClose}
+          />
+        ))}
       </nav>
 
-      {/* Sign out */}
-      <div className="px-3 py-4 border-t border-gray-100">
-        <button
-          onClick={() => signOut({ callbackUrl: "/" })}
-          className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm font-medium text-gray-500 hover:bg-red-50 hover:text-red-600 transition-colors"
+      {/* User / sign-out */}
+      <div className="px-3 py-3 border-t border-white/10 space-y-0.5">
+        <Link
+          href="/profile"
+          onClick={onClose}
+          className="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors hover:bg-white/10 group"
         >
-          <LogOut size={18} />
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent text-white text-xs font-bold">
+            {initials(name)}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold text-white">{name}</p>
+            <p className="truncate text-[10px] text-white/40">{ROLE_LABEL[role] ?? role}</p>
+          </div>
+        </Link>
+
+        <button
+          type="button"
+          onClick={() => signOut({ callbackUrl: "/" })}
+          className="flex w-full items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-white/50 transition-colors hover:bg-red-500/15 hover:text-red-300"
+        >
+          <LogOut size={17} strokeWidth={1.75} />
           Sign out
         </button>
       </div>
     </div>
   );
+}
+
+export default function Sidebar({ unread = 0 }: { unread?: number }) {
+  const [open, setOpen] = useState(false);
 
   return (
     <>
-      {/* Mobile top bar */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between shadow-sm">
-        <div className="flex items-center gap-2">
-          <Image src="/Logo.png" alt="WASCO" width={28} height={28} className="object-contain" />
-          <span className="font-bold text-primary text-sm">WASCO Leak Track</span>
-        </div>
-        <button onClick={() => setOpen(true)} className="p-2 rounded-lg hover:bg-gray-100">
+      {/* Mobile topbar */}
+      <header className="fixed inset-x-0 top-0 z-40 flex h-14 items-center justify-between border-b border-white/10 bg-primary px-4 lg:hidden">
+        <Link href="/dashboard" className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg bg-white">
+            <Image src="/Logo.png" alt="WASCO" width={24} height={24} className="object-contain" />
+          </div>
+          <p className="text-sm font-bold text-white">WASCO <span className="font-normal text-white/40">Leak Track</span></p>
+        </Link>
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label="Open navigation"
+          className="flex h-9 w-9 items-center justify-center rounded-lg text-white hover:bg-white/10 transition-colors"
+        >
           <Menu size={20} />
         </button>
-      </div>
+      </header>
 
       {/* Mobile drawer */}
       {open && (
-        <div className="lg:hidden fixed inset-0 z-50 flex">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setOpen(false)} />
-          <div className="relative w-64 bg-white h-full shadow-xl overflow-hidden">
+        <div className="fixed inset-0 z-50 flex lg:hidden" role="dialog" aria-modal="true">
+          <button
+            type="button"
+            aria-label="Close navigation"
+            onClick={() => setOpen(false)}
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+          />
+          <aside className="relative flex h-full w-[min(280px,85vw)] flex-col shadow-xl animate-in slide-in-from-left duration-200">
             <button
+              type="button"
               onClick={() => setOpen(false)}
-              className="absolute top-3 right-3 p-1 rounded-lg hover:bg-gray-100 z-10"
+              aria-label="Close menu"
+              className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors"
             >
-              <X size={18} />
+              <X size={16} />
             </button>
-            {content}
-          </div>
+            <SidebarContent onClose={() => setOpen(false)} unread={unread} />
+          </aside>
         </div>
       )}
 
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex flex-col w-60 shrink-0 bg-white border-r border-gray-200 h-screen sticky top-0 overflow-hidden">
-        {content}
+      <aside className="sticky top-0 hidden h-screen w-56 shrink-0 flex-col lg:flex">
+        <SidebarContent unread={unread} />
       </aside>
     </>
   );

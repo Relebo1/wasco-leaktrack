@@ -18,6 +18,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       investigationNotes: { include: { author: { select: { id: true, name: true, role: true } } }, orderBy: { createdAt: "desc" } },
       infoRequests: { orderBy: { createdAt: "desc" } },
       findings: { include: { photos: true, technician: { select: { id: true, name: true } } } },
+      repairRecords: { include: { technician: { select: { id: true, name: true } } }, orderBy: { createdAt: "desc" } },
     },
   });
 
